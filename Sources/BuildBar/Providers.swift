@@ -136,7 +136,97 @@ enum GitHub {
         let repository: Repo?
     }
 
+    /// Actions workflow runs plus commit statuses (Vercel, Netlify and other services that report back to GitHub).
     static func fetch(_ s: Source, token: String, top: Int) async throws -> [BuildRun] {
+        let actions = try await actionRuns(s, token: token, top: top)
+        let statuses = s.workflow.trimmingCharacters(in: .whitespaces).isEmpty
+            ? ((try? await statusRuns(s, token: token, top: top)) ?? [])
+            : []
+        return Array((actions + statuses).sorted { $0.sortDate > $1.sortDate }.prefix(top))
+    }
+
+    private struct Commit: Decodable {
+        struct Inner: Decodable { struct Who: Decodable { let name: String?; let date: String? }; let message: String; let author: Who? }
+        struct Login: Decodable { let login: String? }
+        let sha: String
+        let commit: Inner
+        let author: Login?
+    }
+    private struct CommitStatus: Decodable { let state: String; let context: String; let target_url: String?; let created_at: String? }
+
+    struct StatusInfo { let context: String; let state: BuildState; let start: Date?; let end: Date?; let url: URL? }
+
+    /// Final commit statuses never change, so they're fetched once.
+    actor StatusCache {
+        static let shared = StatusCache()
+        private var final: [String: [StatusInfo]] = [:]
+        func get(_ key: String) -> [StatusInfo]? { final[key] }
+        func put(_ key: String, _ infos: [StatusInfo]) { final[key] = infos }
+    }
+
+    private static func request(_ path: String, token: String) -> URLRequest {
+        var req = URLRequest(url: URL(string: "https://api.github.com" + path)!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+        if !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        return req
+    }
+
+    static func statusRuns(_ s: Source, token: String, top: Int) async throws -> [BuildRun] {
+        let branch = s.branch.trimmingCharacters(in: .whitespaces)
+        var path = "/repos/\(s.owner)/\(s.repo)/commits?per_page=\(min(top, 10))"
+        if !branch.isEmpty, let b = branch.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) { path += "&sha=\(b)" }
+        let (data, resp) = try await Providers.session.data(for: request(path, token: token))
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        let commits = try JSONDecoder().decode([Commit].self, from: data)
+
+        var runs: [BuildRun] = []
+        for c in commits {
+            let key = "\(s.owner)/\(s.repo)@\(c.sha)".lowercased()
+            var infos = await StatusCache.shared.get(key)
+            if infos == nil {
+                let (d, r) = try await Providers.session.data(for: request("/repos/\(s.owner)/\(s.repo)/commits/\(c.sha)/statuses?per_page=100", token: token))
+                guard (r as? HTTPURLResponse)?.statusCode == 200 else { continue }
+                let list = try JSONDecoder().decode([CommitStatus].self, from: d)   // newest first
+                var byContext: [String: [CommitStatus]] = [:]
+                for st in list { byContext[st.context, default: []].append(st) }
+                let fresh: [StatusInfo] = byContext.map { context, history in
+                    let latest = history[0]
+                    let state: BuildState = switch latest.state {
+                    case "success": .succeeded
+                    case "failure", "error": .failed
+                    case "pending": .running
+                    default: .unknown
+                    }
+                    let start = history.compactMap { ISODate.parse($0.created_at) }.min()
+                    return StatusInfo(context: context, state: state, start: start,
+                                      end: state.isFinished ? ISODate.parse(latest.created_at) : nil,
+                                      url: latest.target_url.flatMap(URL.init(string:)))
+                }
+                let commitDate = ISODate.parse(c.commit.author?.date) ?? Date()
+                let settled = fresh.allSatisfy { $0.state.isFinished } && -commitDate.timeIntervalSinceNow > 600
+                if settled || (fresh.isEmpty && -commitDate.timeIntervalSinceNow > 1800) {
+                    await StatusCache.shared.put(key, fresh)
+                }
+                infos = fresh
+            }
+            for info in infos ?? [] {
+                runs.append(BuildRun(
+                    id: "\(s.id):st:\(c.sha):\(info.context)", sourceID: s.id,
+                    number: String(c.sha.prefix(7)),
+                    title: c.commit.message.split(separator: "\n").first.map(String.init) ?? c.sha,
+                    pipeline: info.context, repo: info.context,
+                    branch: branch.isEmpty ? nil : branch, commit: String(c.sha.prefix(7)),
+                    author: c.author?.login ?? c.commit.author?.name, state: info.state,
+                    queued: info.start, started: info.start, finished: info.end,
+                    url: info.url ?? URL(string: "https://github.com/\(s.owner)/\(s.repo)/commit/\(c.sha)")))
+            }
+        }
+        return runs
+    }
+
+    static func actionRuns(_ s: Source, token: String, top: Int) async throws -> [BuildRun] {
         let wf = s.workflow.trimmingCharacters(in: .whitespaces)
         var c = URLComponents()
         c.scheme = "https"; c.host = "api.github.com"

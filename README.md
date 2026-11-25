@@ -1,6 +1,6 @@
 # BuildBar
 
-A small macOS menu bar app that watches **Azure DevOps pipelines** and **GitHub Actions** workflows.
+A small macOS menu bar app that watches **Azure DevOps pipelines** and **GitHub** builds: Actions workflow runs plus commit statuses from services like Vercel and Netlify.
 
 - The menu bar icon spins (blue) while any watched build is running. When a build finishes, the icon turns into a green ✓ or red ✕ until you open the menu. You also get a notification, and clicking it opens the run.
 - Click the icon to see the latest runs for each source: status, run number, commit message, repo, branch, author, age and duration. Durations count live while a build is running. Click a row to open it in the browser.

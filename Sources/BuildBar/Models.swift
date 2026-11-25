@@ -77,7 +77,7 @@ struct BuildRun: Identifiable, Equatable {
 enum Provider: String, Codable, CaseIterable, Identifiable {
     case azure, github
     var id: String { rawValue }
-    var name: String { self == .azure ? "Azure DevOps" : "GitHub Actions" }
+    var name: String { self == .azure ? "Azure DevOps" : "GitHub" }
     var symbol: String { self == .azure ? "cloud.fill" : "chevron.left.forwardslash.chevron.right" }
 }
 
