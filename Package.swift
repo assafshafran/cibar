@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "BuildBar",
+    name: "CIBar",
     platforms: [.macOS(.v15)],
     targets: [
-        .executableTarget(name: "BuildBar", path: "Sources/BuildBar")
+        .executableTarget(name: "CIBar", path: "Sources/CIBar")
     ],
     swiftLanguageModes: [.v5]
 )

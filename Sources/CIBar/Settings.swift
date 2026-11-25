@@ -2,16 +2,28 @@ import Foundation
 import Observation
 import ServiceManagement
 
-/// Tokens live in ~/Library/Application Support/BuildBar/tokens.json, readable only by the user (0600),
+/// Tokens live in ~/Library/Application Support/CIBar/tokens.json, readable only by the user (0600),
 /// the same way the gh and az CLIs keep theirs. (The login Keychain kept prompting for locally built apps.)
 enum TokenStore {
     private static var url: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("BuildBar", isDirectory: true)
+            .appendingPathComponent("CIBar", isDirectory: true)
         return dir.appendingPathComponent("tokens.json")
     }
 
+    /// Tokens saved by the app under its earlier name, BuildBar.
+    private static var legacyURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("BuildBar/tokens.json")
+    }
+
     private static func load() -> [String: String] {
+        if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: legacyURL.path) {
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                                     attributes: [.posixPermissions: 0o700])
+            try? FileManager.default.copyItem(at: legacyURL, to: url)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        }
         guard let data = try? Data(contentsOf: url),
               let dict = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
         return dict
@@ -54,12 +66,18 @@ final class AppSettings {
         get { SMAppService.mainApp.status == .enabled }
         set {
             do { newValue ? try SMAppService.mainApp.register() : try SMAppService.mainApp.unregister() } catch {
-                NSLog("BuildBar: launch at login failed: \(error)")
+                NSLog("CIBar: launch at login failed: \(error)")
             }
         }
     }
 
     private init() {
+        // Carry settings over from the app's earlier name (BuildBar, bundle id local.buildbar.app).
+        if defaults.string(forKey: "sources") == nil, let old = UserDefaults(suiteName: "local.buildbar.app") {
+            for key in ["sources", "refreshSeconds", "runsPerSource", "menuRows", "notify", "notifySuccess"] {
+                if let v = old.object(forKey: key) { defaults.set(v, forKey: key) }
+            }
+        }
         if let json = defaults.string(forKey: "sources"),
            let decoded = try? JSONDecoder().decode([Source].self, from: Data(json.utf8)) {
             sources = decoded

@@ -85,7 +85,7 @@ struct SettingsView: View {
                     Text("2 minutes").tag(120)
                     Text("5 minutes").tag(300)
                 }
-                Text("While a build is running BuildBar checks at least every 15 seconds.")
+                Text("While a build is running CIBar checks at least every 15 seconds.")
                     .font(.caption).foregroundStyle(.secondary)
                 Picker("Rows per source in the menu", selection: $settings.menuRows) {
                     Text("1").tag(1); Text("2").tag(2); Text("3").tag(3)

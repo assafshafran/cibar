@@ -1,33 +1,57 @@
-# BuildBar
+# CIBar
 
-A small macOS menu bar app that watches **Azure DevOps pipelines** and **GitHub** builds: Actions workflow runs plus commit statuses from services like Vercel and Netlify.
+**Your builds in the Mac menu bar.** CIBar watches Azure DevOps pipelines and GitHub repositories. It pulses while something is building and turns green or red the moment a build lands, with a notification that opens the run.
 
-- The menu bar icon spins (blue) while any watched build is running. When a build finishes, the icon turns into a green ✓ or red ✕ until you open the menu. You also get a notification, and clicking it opens the run.
-- Click the icon to see the latest runs for each source: status, run number, commit message, repo, branch, author, age and duration. Durations count live while a build is running. Click a row to open it in the browser.
-- It polls every 15 s–5 min (your choice), at least every 15 s while something is running, and refreshes on wake and whenever you open the menu.
+Free and open source (MIT). macOS 15 or later.
 
-## Build and install
+## What it watches
 
-Requires macOS 15+ and Xcode command-line tools.
+| Provider | What shows up | Token |
+|---|---|---|
+| **Azure Pipelines** | Builds in a project: all pipelines, or the pipeline ids you choose | Personal access token with **Build (Read)** |
+| **GitHub Actions** | Workflow runs: all workflows, or one workflow file | Fine-grained token with **Actions (Read)**; optional for public repos |
+| **Vercel, Netlify and others** | Deploys reported to GitHub as commit statuses, on the same repo | Same GitHub token |
+
+Any source can be limited to one branch.
+
+## How it looks
+
+- **Menu bar icon:** a three-stage pipeline. It is quiet in the menu bar's own colours when nothing is happening, and blue with a moving pulse while a build runs. When a build finishes it turns green ✓, red ✕ or orange !, and stays that way until you open the menu.
+- **Menu:** the latest one to three runs of every source, so everything fits without scrolling. Running builds are always shown. Each row has the commit message, build number, branch, repository and author, with a live timer while it runs, and opens the run when clicked. *Show more* reveals a source's history.
+- **Notifications** when a build finishes. Success alerts are optional, and clicking a notification opens the run.
+- **Checks** every 30 seconds by default (configurable), every 15 while a build runs, and again when your Mac wakes.
+
+## Install
+
+Build from source with the Xcode command-line tools:
 
 ```bash
-./scripts/build-app.sh --install   # builds dist/BuildBar.app, copies it to ~/Applications and launches it
+git clone https://github.com/<owner>/cibar
+cd cibar
+./scripts/build-app.sh --install    # builds dist/CIBar.app, copies it to ~/Applications and opens it
 ```
+
+The script signs with your Apple Development certificate if you have one (otherwise ad hoc).
 
 ## Setup
 
 Click the icon, then the gear:
 
-1. **Add sources:** paste a URL, e.g. `https://dev.azure.com/<org>/<project>/_build?definitionId=105` or `https://github.com/<owner>/<repo>` (or `.../actions/workflows/ci.yml`). You can limit a source to pipeline ids, a workflow or a branch.
-2. **Azure DevOps token:** a Personal Access Token with **Build (Read)**.
-3. **GitHub token:** optional for public repos. Use a fine-grained token with **Actions: Read**, or click *Use gh CLI token*.
+1. **Add a source.** Paste a URL such as `https://dev.azure.com/<org>/<project>/_build?definitionId=12` or `https://github.com/<owner>/<repo>`, or use **Choose repositories…** to pick from the repos your GitHub token can see.
+2. **Save your tokens.** Use an Azure DevOps token with Build (Read). For GitHub, use a token with Actions (Read), or click **Use gh CLI token**.
 
-Tokens are stored in `~/Library/Application Support/BuildBar/tokens.json`, readable only by you (like the `gh` and `az` CLIs). Everything else is in `defaults read local.buildbar.app`.
+## Privacy
+
+- Tokens are stored in `~/Library/Application Support/CIBar/tokens.json`, readable only by your user account, the same way the `gh` and `az` CLIs keep theirs.
+- CIBar only talks to `dev.azure.com` and `api.github.com`. It has no account, no analytics and no server.
+- It only reads. It never queues, cancels or changes anything.
 
 ## Diagnostics
 
 ```bash
-~/Applications/BuildBar.app/Contents/MacOS/BuildBar --dump   # prints what each source returns, then exits
+~/Applications/CIBar.app/Contents/MacOS/CIBar --dump    # prints what each source returns, then exits
 ```
 
-The build script signs with your Apple Development certificate when one is installed, otherwise ad-hoc.
+## Contributing
+
+New providers (GitLab, Bitbucket, Jenkins…) are very welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).

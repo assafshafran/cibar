@@ -1,16 +1,16 @@
 #!/bin/bash
-# Builds BuildBar.app into ./dist (and, with --install, copies it to ~/Applications and launches it).
+# Builds CIBar.app into ./dist (and, with --install, copies it to ~/Applications and launches it).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 swift build -c release --arch arm64
-BIN="$(swift build -c release --arch arm64 --show-bin-path)/BuildBar"
-APP="dist/BuildBar.app"
+BIN="$(swift build -c release --arch arm64 --show-bin-path)/CIBar"
+APP="dist/CIBar.app"
 VERSION="${VERSION:-1.0.0}"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/BuildBar"
+cp "$BIN" "$APP/Contents/MacOS/CIBar"
 
 # App icon, drawn by the app itself so it always matches the menu bar glyph.
 ICONSET="$(mktemp -d)/AppIcon.iconset"; mkdir -p "$ICONSET"
@@ -25,10 +25,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>BuildBar</string>
-  <key>CFBundleDisplayName</key><string>BuildBar</string>
-  <key>CFBundleIdentifier</key><string>local.buildbar.app</string>
-  <key>CFBundleExecutable</key><string>BuildBar</string>
+  <key>CFBundleName</key><string>CIBar</string>
+  <key>CFBundleDisplayName</key><string>CIBar</string>
+  <key>CFBundleIdentifier</key><string>dev.cibar.app</string>
+  <key>CFBundleExecutable</key><string>CIBar</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
@@ -51,9 +51,9 @@ echo "Built $APP"
 
 if [[ "${1:-}" == "--install" ]]; then
   mkdir -p "$HOME/Applications"
-  pkill -x BuildBar 2>/dev/null || true
-  rm -rf "$HOME/Applications/BuildBar.app"
-  cp -R "$APP" "$HOME/Applications/BuildBar.app"
-  open "$HOME/Applications/BuildBar.app"
-  echo "Installed to ~/Applications/BuildBar.app"
+  pkill -x CIBar 2>/dev/null || true
+  rm -rf "$HOME/Applications/CIBar.app"
+  cp -R "$APP" "$HOME/Applications/CIBar.app"
+  open "$HOME/Applications/CIBar.app"
+  echo "Installed to ~/Applications/CIBar.app"
 fi

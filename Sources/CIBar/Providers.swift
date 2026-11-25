@@ -168,7 +168,7 @@ enum GitHub {
         var req = URLRequest(url: URL(string: "https://api.github.com" + path)!)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+        req.setValue("CIBar", forHTTPHeaderField: "User-Agent")
         if !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         return req
     }
@@ -242,7 +242,7 @@ enum GitHub {
         var req = URLRequest(url: url)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+        req.setValue("CIBar", forHTTPHeaderField: "User-Agent")
         if !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
 
         let (data, resp) = try await Providers.session.data(for: req)
@@ -299,7 +299,7 @@ enum GitHub {
         var req = URLRequest(url: URL(string: "https://api.github.com" + path)!)
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-        req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+        req.setValue("CIBar", forHTTPHeaderField: "User-Agent")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, resp) = try await Providers.session.data(for: req)
         switch (resp as? HTTPURLResponse)?.statusCode ?? 0 {

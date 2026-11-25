@@ -3,7 +3,7 @@ import SwiftUI
 import UserNotifications
 
 @main
-struct BuildBarApp: App {
+struct CIBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     private let monitor = Monitor.shared
     private let settings = AppSettings.shared
@@ -18,7 +18,7 @@ struct BuildBarApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("BuildBar Settings", id: "settings") {
+        Window("CIBar Settings", id: "settings") {
             SettingsView()
                 .environment(monitor)
                 .environment(settings)
@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
     }
 
-    /// `BuildBar --dump` prints what each source returns; `--snapshot <file.png>` renders the popover.
+    /// `CIBar --dump` prints what each source returns; `--snapshot <file.png>` renders the popover.
     @MainActor
     private static func diagnose(_ args: [String]) async {
         let monitor = Monitor.shared
