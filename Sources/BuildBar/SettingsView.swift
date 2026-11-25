@@ -14,7 +14,8 @@ struct SettingsView: View {
         Form {
             Section {
                 HStack {
-                    TextField("Paste a pipeline or repository URL", text: $pasted)
+                    TextField("URL", text: $pasted, prompt: Text("Paste a pipeline or repository URL"))
+                        .labelsHidden()
                         .onSubmit(addPasted)
                     Button("Add", action: addPasted).disabled(pasted.trimmingCharacters(in: .whitespaces).isEmpty)
                     Menu {
@@ -37,7 +38,7 @@ struct SettingsView: View {
             }
 
             Section("Azure DevOps") {
-                SecureField("Personal access token", text: $settings.azureToken)
+                SecureField("Personal access token", text: $settings.azureToken, prompt: Text("Paste your Azure DevOps token here"))
                 HStack {
                     Text("Scope needed: Build (Read). Stored in your Keychain.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
@@ -49,7 +50,7 @@ struct SettingsView: View {
             }
 
             Section("GitHub") {
-                SecureField("Token (optional for public repos)", text: $settings.githubToken)
+                SecureField("Token", text: $settings.githubToken, prompt: Text("Paste a GitHub token (optional for public repos)"))
                 HStack {
                     Text("Fine-grained token with Actions: Read. Stored in your Keychain.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
@@ -90,6 +91,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .textFieldStyle(.roundedBorder)
         .frame(width: 560)
         .frame(minHeight: 520)
         .onAppear { launchAtLogin = settings.launchAtLogin }
@@ -120,12 +122,12 @@ private struct SourceEditor: View {
                 TextField("Display name", text: $source.name, prompt: Text(source.displayName))
                 switch source.provider {
                 case .azure:
-                    TextField("Organization", text: $source.organization)
-                    TextField("Project", text: $source.project)
+                    TextField("Organization", text: $source.organization, prompt: Text("organization"))
+                    TextField("Project", text: $source.project, prompt: Text("project"))
                     TextField("Pipeline ids", text: $source.definitionIDs, prompt: Text("all pipelines (or e.g. 105, 112)"))
                 case .github:
-                    TextField("Owner", text: $source.owner)
-                    TextField("Repository", text: $source.repo)
+                    TextField("Owner", text: $source.owner, prompt: Text("owner"))
+                    TextField("Repository", text: $source.repo, prompt: Text("repository"))
                     TextField("Workflow", text: $source.workflow, prompt: Text("all workflows (or e.g. ci.yml)"))
                 }
                 TextField("Branch", text: $source.branch, prompt: Text("all branches"))
