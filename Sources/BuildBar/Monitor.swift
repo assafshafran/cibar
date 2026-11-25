@@ -31,17 +31,12 @@ final class Monitor {
     var latest: BuildRun? { runs.values.flatMap { $0 }.max { $0.sortDate < $1.sortDate } }
 
     var icon: NSImage {
-        let badge = unseen.max { $0.state.severity < $1.state.severity }?.state.color
-        if anyActive { return Icons.spinner(frame: spinnerFrame, badge: badge) }
-        if let worst = unseen.max(by: { $0.state.severity < $1.state.severity }) { return Icons.result(worst.state) }
-        if runs.isEmpty && !errors.isEmpty { return Icons.template("exclamationmark.triangle") }
-        if settings.sources.isEmpty { return Icons.template("hammer") }
-        switch latest?.state {
-        case .failed?: return Icons.template("xmark.circle")
-        case .partial?: return Icons.template("exclamationmark.circle")
-        case .succeeded?: return Icons.template("checkmark.circle")
-        default: return Icons.template("circle.dashed")
-        }
+        let worst = unseen.max { $0.state.severity < $1.state.severity }?.state
+        if anyActive { return Icons.running(frame: spinnerFrame, badge: worst?.color) }
+        if let worst { return Icons.result(worst) }
+        if runs.isEmpty && !errors.isEmpty { return Icons.warning }
+        if settings.sources.isEmpty { return Icons.idle(nil, empty: true) }
+        return Icons.idle(latest?.state)
     }
 
     func start() {
@@ -125,7 +120,7 @@ final class Monitor {
 
     private func updateSpinner() {
         if anyActive, spinner == nil {
-            spinner = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
+            spinner = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.spinnerFrame = ((self?.spinnerFrame ?? 0) + 1) % Icons.spinnerFrames }
             }
         } else if !anyActive, let t = spinner {
@@ -158,22 +153,40 @@ final class Monitor {
 }
 
 enum Icons {
-    static let spinnerFrames = 12
+    /// Frames in one cycle of the "running" animation (a pulse travelling along the pipeline).
+    static let spinnerFrames = 9
     private static var cache: [String: NSImage] = [:]
 
-    static func template(_ symbol: String) -> NSImage {
-        cached("t:\(symbol)") { render(symbol, color: nil) }
+    /// Menu bar glyph: three pipeline stages joined by a line. The last stage carries the result.
+    static func idle(_ last: BuildState?, empty: Bool = false) -> NSImage {
+        cached("i:\(last?.rawValue ?? "-"):\(empty)") {
+            pipeline(tint: .black, progress: empty ? 0 : 3, end: last.flatMap(endMark), template: true)
+        }
     }
 
     static func result(_ state: BuildState) -> NSImage {
-        cached("r:\(state.rawValue)") { render(state.symbol, color: state.color) }
+        cached("r:\(state.rawValue)") { pipeline(tint: state.color, progress: 3, end: endMark(state) ?? .check) }
     }
 
-    static func spinner(frame: Int, badge: NSColor?) -> NSImage {
-        let key = "s:\(frame):\(badge?.description ?? "-")"
-        return cached(key) {
-            render("arrow.triangle.2.circlepath", color: .systemBlue,
-                   rotation: CGFloat(frame) / CGFloat(spinnerFrames) * 2 * .pi, dot: badge)
+    static func running(frame: Int, badge: NSColor?) -> NSImage {
+        cached("s:\(frame):\(badge?.description ?? "-")") {
+            pipeline(tint: .systemBlue, progress: frame / 3, pulse: CGFloat(frame % 3) / 2, dot: badge)
+        }
+    }
+
+    static var warning: NSImage {
+        cached("w") { pipeline(tint: .black, progress: 3, end: .bang, template: true) }
+    }
+
+    enum Mark { case check, cross, bang, stop }
+
+    private static func endMark(_ s: BuildState) -> Mark? {
+        switch s {
+        case .succeeded: .check
+        case .failed: .cross
+        case .partial: .bang
+        case .canceled: .stop
+        default: nil
         }
     }
 
@@ -184,29 +197,102 @@ enum Icons {
         return img
     }
 
-    private static func render(_ symbol: String, color: NSColor?, rotation: CGFloat = 0, dot: NSColor? = nil) -> NSImage {
-        var cfg = NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold)
-        if let color { cfg = cfg.applying(NSImage.SymbolConfiguration(paletteColors: [color])) }
-        guard let sym = NSImage(systemSymbolName: symbol, accessibilityDescription: "Build status")?
-            .withSymbolConfiguration(cfg) else { return NSImage() }
-        let size = NSSize(width: 20, height: 18)
-        let img = NSImage(size: size, flipped: false) { rect in
-            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
-            ctx.saveGState()
-            ctx.translateBy(x: rect.midX, y: rect.midY)
-            ctx.rotate(by: -rotation)
-            let s = sym.size
-            sym.draw(in: NSRect(x: -s.width / 2, y: -s.height / 2, width: s.width, height: s.height))
-            ctx.restoreGState()
-            if let dot {
-                let r = NSRect(x: rect.maxX - 7, y: rect.maxY - 7, width: 7, height: 7)
-                NSColor.white.setFill(); NSBezierPath(ovalIn: r.insetBy(dx: -1, dy: -1)).fill()
-                dot.setFill(); NSBezierPath(ovalIn: r).fill()
-            }
+    /// - progress: stages already done (filled); the stage at `progress` pulses while running.
+    private static func pipeline(tint: NSColor, progress: Int, pulse: CGFloat = 0, end: Mark? = nil,
+                                 template: Bool = false, dot: NSColor? = nil) -> NSImage {
+        let img = NSImage(size: NSSize(width: 30, height: 18), flipped: false) { _ in
+            draw(in: CGRect(x: 0, y: 0, width: 30, height: 18), tint: tint, progress: progress,
+                 pulse: pulse, end: end, dot: dot)
             return true
         }
-        img.isTemplate = color == nil && dot == nil
+        img.isTemplate = template
         return img
+    }
+
+    /// Draws the pipeline glyph scaled into `rect` (designed on a 30x18 grid).
+    static func draw(in rect: CGRect, tint: NSColor, progress: Int, pulse: CGFloat = 0, end: Mark? = nil,
+                     dot: NSColor? = nil, cutout: NSColor? = nil) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.saveGState()
+        ctx.translateBy(x: rect.minX, y: rect.minY)
+        ctx.scaleBy(x: rect.width / 30, y: rect.height / 18)
+        let xs: [CGFloat] = [3.6, 12.6, 23.8]
+        let y: CGFloat = 9
+        let r: CGFloat = 2.5
+        let endR: CGFloat = end == nil ? r : 5.3
+        tint.setStroke(); tint.setFill()
+
+        // Connectors
+        for i in 0..<2 {
+            let a = xs[i] + r + 1.4
+            let b = xs[i + 1] - (i == 1 ? endR : r) - 1.4
+            let line = NSBezierPath()
+            line.move(to: CGPoint(x: a, y: y)); line.line(to: CGPoint(x: b, y: y))
+            line.lineWidth = 1.5; line.lineCapStyle = .round
+            if i >= progress { tint.withAlphaComponent(0.45).setStroke() } else { tint.setStroke() }
+            line.stroke()
+        }
+        // Stages
+        for i in 0..<3 {
+            let isEnd = i == 2 && end != nil
+            let rr = isEnd ? endR : (i == progress ? r + 0.9 * pulse : r)
+            let oval = NSBezierPath(ovalIn: CGRect(x: xs[i] - rr, y: y - rr, width: rr * 2, height: rr * 2))
+            if isEnd || i < progress || i == progress && pulse > 0 {
+                tint.setFill(); oval.fill()
+            } else {
+                tint.setStroke(); oval.lineWidth = 1.3
+                let inner = NSBezierPath(ovalIn: CGRect(x: xs[i] - rr + 0.65, y: y - rr + 0.65,
+                                                        width: rr * 2 - 1.3, height: rr * 2 - 1.3))
+                inner.lineWidth = 1.3; inner.stroke()
+            }
+        }
+        // Result mark knocked out of the last stage
+        if let end {
+            let cx = xs[2]
+            let mark = NSBezierPath()
+            mark.lineWidth = 1.7; mark.lineCapStyle = .round; mark.lineJoinStyle = .round
+            switch end {
+            case .check:
+                mark.move(to: CGPoint(x: cx - 2.5, y: y + 0.1))
+                mark.line(to: CGPoint(x: cx - 0.7, y: y - 1.9))
+                mark.line(to: CGPoint(x: cx + 2.6, y: y + 2.1))
+            case .cross:
+                mark.move(to: CGPoint(x: cx - 1.9, y: y - 1.9)); mark.line(to: CGPoint(x: cx + 1.9, y: y + 1.9))
+                mark.move(to: CGPoint(x: cx - 1.9, y: y + 1.9)); mark.line(to: CGPoint(x: cx + 1.9, y: y - 1.9))
+            case .bang:
+                mark.move(to: CGPoint(x: cx, y: y + 2.6)); mark.line(to: CGPoint(x: cx, y: y - 0.2))
+                mark.move(to: CGPoint(x: cx, y: y - 2.3)); mark.line(to: CGPoint(x: cx, y: y - 2.35))
+            case .stop:
+                mark.move(to: CGPoint(x: cx - 2.2, y: y)); mark.line(to: CGPoint(x: cx + 2.2, y: y))
+            }
+            if let cutout {
+                cutout.setStroke(); mark.stroke()
+            } else {
+                ctx.setBlendMode(.clear); mark.stroke(); ctx.setBlendMode(.normal)
+            }
+        }
+        if let dot {
+            let d = CGRect(x: 24.2, y: 12.2, width: 5.6, height: 5.6)
+            ctx.setBlendMode(.clear); NSBezierPath(ovalIn: d.insetBy(dx: -1.2, dy: -1.2)).fill(); ctx.setBlendMode(.normal)
+            dot.setFill(); NSBezierPath(ovalIn: d).fill()
+        }
+        ctx.restoreGState()
+    }
+
+    /// The app icon (Finder, notifications): the same glyph, white on a blue squircle.
+    static func appIcon(size: CGFloat) -> NSImage {
+        NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            let inset = rect.insetBy(dx: size * 0.09, dy: size * 0.09)
+            let bg = NSBezierPath(roundedRect: inset, xRadius: size * 0.2, yRadius: size * 0.2)
+            NSGradient(starting: NSColor(red: 0.20, green: 0.48, blue: 0.98, alpha: 1),
+                       ending: NSColor(red: 0.07, green: 0.20, blue: 0.62, alpha: 1))?.draw(in: bg, angle: -90)
+            let w = inset.width * 0.8
+            let h = w * 18 / 30
+            let glyph = CGRect(x: inset.midX - w / 2, y: inset.midY - h / 2, width: w, height: h)
+            draw(in: glyph, tint: .white, progress: 3, end: .check,
+                 cutout: NSColor(red: 0.13, green: 0.34, blue: 0.80, alpha: 1))
+            return true
+        }
     }
 }
 

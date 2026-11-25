@@ -198,6 +198,36 @@ enum GitHub {
         }
     }
 
+    struct RepoInfo: Decodable, Identifiable, Hashable {
+        let full_name: String
+        let `private`: Bool
+        let pushed_at: String?
+        var id: String { full_name }
+    }
+
+    /// Repositories the token can see, most recently pushed first.
+    static func listRepos(token: String) async throws -> [RepoInfo] {
+        guard !token.isEmpty else { throw ProviderError("Save a GitHub token first") }
+        var all: [RepoInfo] = []
+        for page in 1...5 {
+            var req = URLRequest(url: URL(string: "https://api.github.com/user/repos?per_page=100&sort=pushed&page=\(page)")!)
+            req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+            req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let (data, resp) = try await Providers.session.data(for: req)
+            switch (resp as? HTTPURLResponse)?.statusCode ?? 0 {
+            case 200: break
+            case 401: throw ProviderError("GitHub rejected the token")
+            case let code: throw ProviderError("GitHub returned HTTP \(code)")
+            }
+            let batch = try JSONDecoder().decode([RepoInfo].self, from: data)
+            all += batch
+            if batch.count < 100 { break }
+        }
+        return all
+    }
+
     /// Reads the token of an installed, signed-in `gh` CLI, if there is one.
     static func ghCLIToken() -> String? {
         let candidates = ["/opt/homebrew/bin/gh", "/usr/local/bin/gh", "/usr/bin/gh"]
