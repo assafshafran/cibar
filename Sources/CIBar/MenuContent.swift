@@ -97,6 +97,24 @@ struct MenuContent: View {
     }
 
     private var footer: some View {
+        VStack(spacing: 0) {
+            if let update = Updater.shared.available {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle.fill").foregroundStyle(.blue)
+                    Text("CIBar \(update.version) is available").font(.caption.weight(.medium))
+                    Spacer()
+                    Button("Download") { Updater.shared.download() }
+                        .buttonStyle(.link).font(.caption)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .background(Color.blue.opacity(0.08))
+                Divider()
+            }
+            footerRow
+        }
+    }
+
+    private var footerRow: some View {
         HStack {
             TimelineView(.periodic(from: .now, by: 5)) { _ in
                 Text(monitor.lastRefresh.map { "Updated \(Format.ago($0))" } ?? "Not refreshed yet")

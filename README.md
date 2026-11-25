@@ -45,7 +45,7 @@ Click the icon, then the gear:
 ## Privacy
 
 - Tokens are stored in `~/Library/Application Support/CIBar/tokens.json`, readable only by your user account, the same way the `gh` and `az` CLIs keep theirs.
-- CIBar only talks to `dev.azure.com` and `api.github.com`. It has no account, no analytics and no server.
+- CIBar only talks to `dev.azure.com` and `api.github.com` (which also tells it when a new version of CIBar is out). It has no account, no analytics and no server.
 - It only reads. It never queues, cancels or changes anything.
 
 ## Releasing

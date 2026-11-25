@@ -103,6 +103,8 @@ struct SettingsView: View {
                     }
             }
 
+            UpdatesSection()
+
             HStack {
                 Spacer()
                 if monitor.isRefreshing { ProgressView().controlSize(.small) }
@@ -333,5 +335,37 @@ private struct RepoPicker: View {
                     sources.removeAll(where: match)
                 }
             })
+    }
+}
+
+private struct UpdatesSection: View {
+    @State private var automatic = Updater.shared.automatic
+
+    var body: some View {
+        let updater = Updater.shared
+        Section("Updates") {
+            HStack {
+                Text("CIBar \(updater.currentVersion)")
+                Spacer()
+                if updater.checking { ProgressView().controlSize(.small) }
+                Button("Check now") { Task { await updater.check() } }
+                    .disabled(updater.checking)
+            }
+            if let update = updater.available {
+                HStack {
+                    Label("CIBar \(update.version) is available", systemImage: "arrow.down.circle.fill")
+                        .foregroundStyle(.blue)
+                    Spacer()
+                    Link("Release notes", destination: update.page).font(.caption)
+                    Button("Download") { updater.download() }.buttonStyle(.borderedProminent)
+                }
+            } else if let error = updater.lastError {
+                Text("Couldn't check: \(error)").font(.caption).foregroundStyle(.orange)
+            } else if let checked = updater.lastChecked {
+                Text("Up to date (checked \(Format.ago(checked)))").font(.caption).foregroundStyle(.secondary)
+            }
+            Toggle("Check for updates automatically", isOn: $automatic)
+                .onChange(of: automatic) { _, on in updater.automatic = on }
+        }
     }
 }

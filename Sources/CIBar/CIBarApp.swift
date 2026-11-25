@@ -47,7 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         UNUserNotificationCenter.current().delegate = notificationDelegate
-        Task { @MainActor in Monitor.shared.start() }
+        Task { @MainActor in
+            Monitor.shared.start()
+            Updater.shared.start()
+        }
     }
 
     static func writePNG(_ image: NSImage, size: Int, to path: String) {
