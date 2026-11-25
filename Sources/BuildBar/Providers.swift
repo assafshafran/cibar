@@ -205,27 +205,43 @@ enum GitHub {
         var id: String { full_name }
     }
 
-    /// Repositories the token can see, most recently pushed first.
-    static func listRepos(token: String) async throws -> [RepoInfo] {
-        guard !token.isEmpty else { throw ProviderError("Save a GitHub token first") }
+    private static func get(_ path: String, token: String) async throws -> Data {
+        var req = URLRequest(url: URL(string: "https://api.github.com" + path)!)
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, resp) = try await Providers.session.data(for: req)
+        switch (resp as? HTTPURLResponse)?.statusCode ?? 0 {
+        case 200: return data
+        case 401: throw ProviderError("GitHub rejected the token")
+        case let code: throw ProviderError("GitHub returned HTTP \(code)")
+        }
+    }
+
+    private static func pages(_ path: String, token: String) async throws -> [RepoInfo] {
         var all: [RepoInfo] = []
         for page in 1...5 {
-            var req = URLRequest(url: URL(string: "https://api.github.com/user/repos?per_page=100&sort=pushed&page=\(page)")!)
-            req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
-            req.setValue("BuildBar", forHTTPHeaderField: "User-Agent")
-            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            let (data, resp) = try await Providers.session.data(for: req)
-            switch (resp as? HTTPURLResponse)?.statusCode ?? 0 {
-            case 200: break
-            case 401: throw ProviderError("GitHub rejected the token")
-            case let code: throw ProviderError("GitHub returned HTTP \(code)")
-            }
-            let batch = try JSONDecoder().decode([RepoInfo].self, from: data)
+            let sep = path.contains("?") ? "&" : "?"
+            let batch = try JSONDecoder().decode([RepoInfo].self, from: try await get("\(path)\(sep)per_page=100&page=\(page)", token: token))
             all += batch
             if batch.count < 100 { break }
         }
         return all
+    }
+
+    /// Repositories the token was granted, plus the user's own public repositories
+    /// (a fine-grained token limited to selected repos doesn't list the others, though it can read them).
+    static func listRepos(token: String) async throws -> [RepoInfo] {
+        guard !token.isEmpty else { throw ProviderError("Save a GitHub token first") }
+        var byName: [String: RepoInfo] = [:]
+        for r in try await pages("/user/repos?sort=pushed", token: token) { byName[r.full_name.lowercased()] = r }
+        struct Me: Decodable { let login: String }
+        if let me = try? JSONDecoder().decode(Me.self, from: try await get("/user", token: token)),
+           let publicRepos = try? await pages("/users/\(me.login)/repos?type=owner&sort=pushed", token: token) {
+            for r in publicRepos where byName[r.full_name.lowercased()] == nil { byName[r.full_name.lowercased()] = r }
+        }
+        return byName.values.sorted { ($0.pushed_at ?? "") > ($1.pushed_at ?? "") }
     }
 
     /// Reads the token of an installed, signed-in `gh` CLI, if there is one.

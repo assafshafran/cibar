@@ -270,6 +270,12 @@ private struct RepoPicker: View {
             }
             .frame(height: 320)
             HStack {
+                if let typed = typedRepo {
+                    Button("Add \(typed)") { add(typed); filter = "" }
+                } else {
+                    Text("Missing one? Type owner/repo above to add any repository.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Done", action: onDone).keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
             }
@@ -285,6 +291,24 @@ private struct RepoPicker: View {
     private var shown: [GitHub.RepoInfo] {
         let f = filter.trimmingCharacters(in: .whitespaces).lowercased()
         return f.isEmpty ? repos : repos.filter { $0.full_name.lowercased().contains(f) }
+    }
+
+    /// "owner/repo" typed in the filter that isn't in the list yet (also accepts a pasted github.com URL).
+    private var typedRepo: String? {
+        let f = filter.trimmingCharacters(in: .whitespaces)
+        var name = f
+        if let s = Source.from(urlString: f), s.provider == .github { name = "\(s.owner)/\(s.repo)" }
+        let parts = name.split(separator: "/")
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty, !name.contains(" ") else { return nil }
+        let exists = repos.contains { $0.full_name.lowercased() == name.lowercased() }
+            || sources.contains { $0.provider == .github && "\($0.owner)/\($0.repo)".lowercased() == name.lowercased() }
+        return exists ? nil : name
+    }
+
+    private func add(_ fullName: String) {
+        let parts = fullName.split(separator: "/").map(String.init)
+        var s = Source(provider: .github); s.owner = parts[0]; s.repo = parts[1]
+        sources.append(s)
     }
 
     private func binding(for repo: GitHub.RepoInfo) -> Binding<Bool> {
