@@ -23,7 +23,9 @@ Any source can be limited to one branch.
 
 ## Install
 
-Build from source with the Xcode command-line tools:
+**[Download CIBar.dmg](https://github.com/cibar-dev/cibar/releases/latest/download/CIBar.dmg)** (signed and notarised), open it and drag CIBar to Applications.
+
+Or build from source with the Xcode command-line tools:
 
 ```bash
 git clone https://github.com/cibar-dev/cibar
@@ -45,6 +47,10 @@ Click the icon, then the gear:
 - Tokens are stored in `~/Library/Application Support/CIBar/tokens.json`, readable only by your user account, the same way the `gh` and `az` CLIs keep theirs.
 - CIBar only talks to `dev.azure.com` and `api.github.com`. It has no account, no analytics and no server.
 - It only reads. It never queues, cancels or changes anything.
+
+## Releasing
+
+`scripts/release.sh --publish` builds a universal binary signed with Developer ID, notarises and staples the disk image, and publishes it as GitHub release `v<VERSION>` with notes from `docs/release-notes/`. It needs a Developer ID certificate and a `notarytool` keychain profile (see the script's header).
 
 ## Diagnostics
 
