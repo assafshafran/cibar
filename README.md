@@ -30,4 +30,4 @@ Tokens are stored in the macOS Keychain. Everything else is in `defaults read lo
 ~/Applications/BuildBar.app/Contents/MacOS/BuildBar --dump   # prints what each source returns, then exits
 ```
 
-The app is ad-hoc signed. After a rebuild macOS may ask once whether BuildBar may read its Keychain items: choose *Always Allow*.
+The build script signs with your Apple Development certificate when one is installed, so the Keychain's *Always Allow* survives rebuilds. Without one it signs ad-hoc, and macOS asks again after every rebuild.
