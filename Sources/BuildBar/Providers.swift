@@ -240,6 +240,17 @@ enum GitHub {
         if let me = try? JSONDecoder().decode(Me.self, from: try await get("/user", token: token)),
            let publicRepos = try? await pages("/users/\(me.login)/repos?type=owner&sort=pushed", token: token) {
             for r in publicRepos where byName[r.full_name.lowercased()] == nil { byName[r.full_name.lowercased()] = r }
+            // Organizations: the token's view (may be empty for fine-grained tokens) plus public memberships.
+            struct Org: Decodable { let login: String }
+            var orgs = Set<String>()
+            for path in ["/user/orgs?per_page=100", "/users/\(me.login)/orgs?per_page=100"] {
+                if let data = try? await get(path, token: token),
+                   let list = try? JSONDecoder().decode([Org].self, from: data) { orgs.formUnion(list.map(\.login)) }
+            }
+            for org in orgs.sorted() {
+                guard let repos = try? await pages("/orgs/\(org)/repos?type=public&sort=pushed", token: token) else { continue }
+                for r in repos where byName[r.full_name.lowercased()] == nil { byName[r.full_name.lowercased()] = r }
+            }
         }
         return byName.values.sorted { ($0.pushed_at ?? "") > ($1.pushed_at ?? "") }
     }
