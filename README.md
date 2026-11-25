@@ -26,7 +26,7 @@ Any source can be limited to one branch.
 Build from source with the Xcode command-line tools:
 
 ```bash
-git clone https://github.com/<owner>/cibar
+git clone https://github.com/cibar-dev/cibar
 cd cibar
 ./scripts/build-app.sh --install    # builds dist/CIBar.app, copies it to ~/Applications and opens it
 ```
