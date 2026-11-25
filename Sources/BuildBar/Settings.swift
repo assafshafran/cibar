@@ -42,6 +42,8 @@ final class AppSettings {
     var sources: [Source] { didSet { saveSources() } }
     var refreshSeconds: Int { didSet { defaults.set(refreshSeconds, forKey: "refreshSeconds") } }
     var runsPerSource: Int { didSet { defaults.set(runsPerSource, forKey: "runsPerSource") } }
+    /// Rows each source shows in the menu before "Show more" (running builds are always shown).
+    var menuRows: Int { didSet { defaults.set(menuRows, forKey: "menuRows") } }
     var notify: Bool { didSet { defaults.set(notify, forKey: "notify") } }
     var notifySuccess: Bool { didSet { defaults.set(notifySuccess, forKey: "notifySuccess") } }
 
@@ -66,6 +68,7 @@ final class AppSettings {
         }
         refreshSeconds = defaults.object(forKey: "refreshSeconds") as? Int ?? 30
         runsPerSource = defaults.object(forKey: "runsPerSource") as? Int ?? 8
+        menuRows = defaults.object(forKey: "menuRows") as? Int ?? 2
         notify = defaults.object(forKey: "notify") as? Bool ?? true
         notifySuccess = defaults.object(forKey: "notifySuccess") as? Bool ?? true
         azureToken = TokenStore.get("azure-devops")

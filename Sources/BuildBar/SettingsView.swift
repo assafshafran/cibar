@@ -87,7 +87,13 @@ struct SettingsView: View {
                 }
                 Text("While a build is running BuildBar checks at least every 15 seconds.")
                     .font(.caption).foregroundStyle(.secondary)
-                Stepper("Runs per source: \(settings.runsPerSource)", value: $settings.runsPerSource, in: 3...30)
+                Picker("Rows per source in the menu", selection: $settings.menuRows) {
+                    Text("1").tag(1); Text("2").tag(2); Text("3").tag(3)
+                }
+                .pickerStyle(.segmented)
+                Text("Running builds are always shown; \"Show more\" reveals the rest.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Stepper("History per source: \(settings.runsPerSource)", value: $settings.runsPerSource, in: 3...30)
                 Toggle("Notify when a build finishes", isOn: $settings.notify)
                 Toggle("Also notify on success", isOn: $settings.notifySuccess).disabled(!settings.notify)
                 Toggle("Launch at login", isOn: $launchAtLogin)

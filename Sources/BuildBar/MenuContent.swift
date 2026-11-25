@@ -5,6 +5,7 @@ struct MenuContent: View {
     @Environment(Monitor.self) private var monitor
     @Environment(AppSettings.self) private var settings
     @Environment(\.openWindow) private var openWindow
+    @State private var expanded: Set<UUID> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,7 +17,7 @@ struct MenuContent: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(settings.sources.filter(\.enabled)) { source in
-                            SourceSection(source: source)
+                            SourceSection(source: source, rows: rows(for: source), expanded: expandedBinding(source.id))
                         }
                     }
                     .padding(.vertical, 4)
@@ -36,17 +37,34 @@ struct MenuContent: View {
         }
     }
 
-    /// Rough content height so the popover hugs short lists and scrolls long ones.
+    /// Running/queued runs always, then the newest ones up to the configured row count (all when expanded).
+    private func rows(for source: Source) -> (shown: [BuildRun], hidden: Int) {
+        let list = monitor.runs[source.id] ?? []
+        if expanded.contains(source.id) { return (list, 0) }
+        let active = list.filter { $0.state.isActive }
+        let rest = list.filter { !$0.state.isActive }
+        let shown = active + rest.prefix(max(0, settings.menuRows - active.count))
+        let ids = Set(shown.map(\.id))
+        return (list.filter { ids.contains($0.id) }, list.count - shown.count)
+    }
+
+    private func expandedBinding(_ id: UUID) -> Binding<Bool> {
+        Binding(get: { expanded.contains(id) },
+                set: { if $0 { expanded.insert(id) } else { expanded.remove(id) } })
+    }
+
+    /// Content height, so the popover hugs the list; it only scrolls when it can't fit on screen.
     private var listHeight: CGFloat {
-        let sources = settings.sources.filter(\.enabled)
         var h: CGFloat = 8
-        for s in sources {
+        for s in settings.sources.filter(\.enabled) {
             h += 34
             if monitor.errors[s.id] != nil { h += 20 }
-            let n = monitor.runs[s.id]?.count ?? 0
-            h += n == 0 ? 22 : CGFloat(n) * 46
+            let r = rows(for: s)
+            h += r.shown.isEmpty ? 22 : CGFloat(r.shown.count) * 46
+            if r.hidden > 0 || expanded.contains(s.id) { h += 22 }
         }
-        return min(max(h, 60), 560)
+        let screen = (NSScreen.main?.visibleFrame.height ?? 900) - 120
+        return min(max(h, 60), screen)
     }
 
     private var header: some View {
@@ -106,6 +124,8 @@ struct MenuContent: View {
 private struct SourceSection: View {
     @Environment(Monitor.self) private var monitor
     let source: Source
+    let rows: (shown: [BuildRun], hidden: Int)
+    @Binding var expanded: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -136,7 +156,12 @@ private struct SourceSection: View {
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 12).padding(.bottom, 6)
             }
-            ForEach(list) { run in RunRow(run: run) }
+            ForEach(rows.shown) { run in RunRow(run: run) }
+            if rows.hidden > 0 || expanded {
+                Button(expanded ? "Show less" : "Show \(rows.hidden) more") { expanded.toggle() }
+                    .buttonStyle(.link).font(.caption)
+                    .padding(.leading, 44).padding(.bottom, 4)
+            }
         }
     }
 }
