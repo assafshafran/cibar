@@ -1,0 +1,24 @@
+# Words the privacy check (Scripts/privacy_check.py) never treats as private on their own:
+# app and product names, and the made-up names the tests and docs use.
+# One per line, any case. Real people never go here: add them to the private list instead.
+bema
+powerpoint
+keynote
+microsoft
+apple
+zoom
+teams
+google
+sam
+noa
+dana
+acme
+home
+video
+record
+terminal
+design
+save
+github
+mark
+global
