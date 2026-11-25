@@ -1,23 +1,11 @@
 Building for production...
 [Planning deferred tasks]
 [1 / 1]
-[7 / 13] CIBar-product
-[19 / 82]
-[28 / 82]
-[31 / 82]
-[37 / 82]
-[40 / 82]
-[44 / 82]
-[49 / 82]
-[54 / 82]
-[55 / 82]
-[69 / 82]
-[73 / 82]
-[75 / 82]
-[77 / 82] CIBar-product
-[79 / 82] CIBar-product
-[81 / 82] CIBar-product
+[6 / 12] CIBar-product
+[8 / 13] CIBar-product
+[10 / 13] CIBar-product
+[12 / 13] CIBar-product
 warning: The x86_64 architecture is deprecated for your deployment target (macOS 27.2). You should update your ARCHS build setting to remove the x86_64 architecture.
-Build complete! (7.01 secs)
+Build complete! (5.02 secs)
 dist/CIBar.app: replacing existing signature
 Built dist/CIBar.app
