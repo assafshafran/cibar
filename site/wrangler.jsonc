@@ -1,0 +1,15 @@
+{
+  // Static site for cibar.dev, served by Cloudflare Workers static assets.
+  // Deploy: cd site && npx wrangler deploy
+  "name": "cibar",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": ".",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "routes": [
+    { "pattern": "cibar.dev", "custom_domain": true },
+    { "pattern": "www.cibar.dev", "custom_domain": true }
+  ]
+}
