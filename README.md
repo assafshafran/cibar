@@ -22,7 +22,7 @@ Click the icon, then the gear:
 2. **Azure DevOps token:** a Personal Access Token with **Build (Read)**.
 3. **GitHub token:** optional for public repos. Use a fine-grained token with **Actions: Read**, or click *Use gh CLI token*.
 
-Tokens are stored in the macOS Keychain. Everything else is in `defaults read local.buildbar.app`.
+Tokens are stored in `~/Library/Application Support/BuildBar/tokens.json`, readable only by you (like the `gh` and `az` CLIs). Everything else is in `defaults read local.buildbar.app`.
 
 ## Diagnostics
 
@@ -30,4 +30,4 @@ Tokens are stored in the macOS Keychain. Everything else is in `defaults read lo
 ~/Applications/BuildBar.app/Contents/MacOS/BuildBar --dump   # prints what each source returns, then exits
 ```
 
-The build script signs with your Apple Development certificate when one is installed, so the Keychain's *Always Allow* survives rebuilds. Without one it signs ad-hoc, and macOS asks again after every rebuild.
+The build script signs with your Apple Development certificate when one is installed, otherwise ad-hoc.

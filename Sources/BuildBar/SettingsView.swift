@@ -43,7 +43,7 @@ struct SettingsView: View {
                     Task { await monitor.refresh() }
                 }
                 HStack {
-                    Text("Scope needed: Build (Read). Stored in your Keychain.").font(.caption).foregroundStyle(.secondary)
+                    Text("Scope needed: Build (Read). Stored privately on this Mac.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     if let org = settings.sources.first(where: { $0.provider == .azure && !$0.organization.isEmpty })?.organization,
                        let url = URL(string: "https://dev.azure.com/\(org)/_usersSettings/tokens") {
@@ -57,7 +57,7 @@ struct SettingsView: View {
                     Task { await monitor.refresh() }
                 }
                 HStack {
-                    Text("Fine-grained token with Actions: Read. Stored in your Keychain.").font(.caption).foregroundStyle(.secondary)
+                    Text("Fine-grained token with Actions: Read. Stored privately on this Mac.").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button("Use gh CLI token") {
                         if let t = GitHub.ghCLIToken() { settings.githubToken = t; ghMessage = "Imported from gh." }
